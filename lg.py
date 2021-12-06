@@ -101,7 +101,7 @@ def read_test_csv(
     return test_X, test_Y
 
 
-class Linear_regression(object):
+class LinearRegression(object):
     """
     A class wrapper for linear regression.
 
