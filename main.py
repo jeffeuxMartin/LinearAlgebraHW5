@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 # functions and classes from `lg.py`
 from lg import read_train_csv, read_test_csv
-from lg import Linear_regression, MSE
+from lg import LinearRegression, MSE
 
 
 def run_train_test(
@@ -19,7 +19,7 @@ def run_train_test(
 
     train_X, train_Y = read_train_csv(
         train_filename, N)
-    model = Linear_regression()
+    model = LinearRegression()
     model.train(train_X, train_Y)
     pred_train_Y = model.predict(train_X)
     train_loss = MSE(pred_train_Y, train_Y)
