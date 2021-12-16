@@ -130,7 +130,10 @@ def main():
         except FileNotFoundError as err:
             print(f"{test_filename} is required for "
                    "prediction! Please go to \n"
-                   "https://colab.research.google.com/drive/1SgQEPvtKfauTilboA5q81wZbWrwKOj_c#scrollTo=n6LZ10EHAVmg"
+                   "https://colab.research.google.com"
+                   "/github/jeffeuxMartin"
+                   "/LinearAlgebraHW5/blob/main"
+                   "/LAHW5_colab.ipynb"
                    "\nand download it...")
             import sys
             sys.exit(0)
