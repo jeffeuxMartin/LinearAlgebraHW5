@@ -128,10 +128,12 @@ def main():
                 pass
             break
         except FileNotFoundError as err:
-            input(f"{test_filename} is required for "
+            print(f"{test_filename} is required for "
                    "prediction! Please go to \n"
                    "https://colab.research.google.com/drive/1SgQEPvtKfauTilboA5q81wZbWrwKOj_c#scrollTo=n6LZ10EHAVmg"
                    "\nand download it...")
+            import sys
+            sys.exit(0)
 
     run_train_test(N, train_filename="data/train.csv",
                       test_filename=test_filename,
