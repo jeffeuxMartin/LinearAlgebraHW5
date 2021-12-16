@@ -1,143 +1,211 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Finalized on 10:34:50, (Thu.) Dec. 16th, 2021
+
+@filename:    lg.py
+@modifier:    Chien-cheng (Jeff) Chen
+@description: Main program for linear regression
+              Used in linear algebra (2021) HW5
+"""
+# 1.       ---        libraries        ---       --- #
+import numpy as np  # NOTE: no other libraies allowed!
+
+# for type hint
 from typing import Tuple
+from numpy import ndarray
 
-import numpy as np
 
+# 2.       ---        constants        ---       --- #
 attrs = ["AMB_TEMP", "CH4", "CO", "NMHC", "NO", "NO2",
          "NOx", "O3", "PM10",
-         "PM2.5",  # <-- The target feature
+         "PM2.5",  # <-- target (index = 9)
          "RAINFALL", "RH", "SO2", "THC", "WD_HR",
          "WIND_DIREC", "WIND_SPEED", "WS_HR"]
-DAYS = np.array([31, 28, 31, 30, 31, 30,
-                 31, 31, 30, 31, 30, 31])
 
+
+# 3.       ---        utilities        ---       --- #
 def get_N_hours_feat(
-    month_data: np.ndarray, N: int
-  ) -> Tuple[np.ndarray, np.ndarray]:
+    month_data: ndarray,
+    N: int,
+    UNBIASED: bool = False,
+  ) -> Tuple[ndarray, ndarray]:
     """ Get features of N hours. """
 
-    # month_data.shape = (num_of_date, 18, 24)
-
-    data = (month_data.transpose((0, 2, 1))
-                      .reshape(-1, 18))
-    label = (month_data.transpose((1, 0, 2))
-                       .reshape(18, -1))[9]
+    #              month_data.shape = (#date,  18, 24)
+    data  = month_data.transpose((0, 2, 1))  
+                            # shape = (#date,  24, 18)
+    data  = data.reshape(-1, 18)             
+                            # shape = (#date * 24, 18)
+    label = data[:, attrs.index("PM2.5")]
     total_hours = len(label)
 
-    feats = np.array([])
+    feats = (
+        np.empty([0, N * 18 + 1])  # biased (default)
+            if not UNBIASED else
+        np.empty([0, N * 18])      # bias removed
+    )
     for i in range(total_hours - N):
-        # Adding `w0`. To discuss without `w0`,
-        #     please comment the next command!
-        #     (split into 2 lines by default)-----|
-        cur_feat = np.append(                # <--|
-            data[i : i + N].flatten(), [1])  # <--|
-        feats = np.concatenate(
-            [feats, cur_feat], axis=0)
+        cur_feat = data[i : i + N].flatten()
+        if not UNBIASED:           # Adding `w0` \
+                                   #         (default)
+            cur_feat = np.append(cur_feat, [1])
+        cur_feat = cur_feat[None]  # add new axis
+
+        # aggregate together
+        feats = np.concatenate([feats, cur_feat])
 
     label = label[N:]
-
-    # To discuss without `w0`,
-    #     please change `N * 18 + 1` to `N * 18`!
-    feats = feats.reshape(-1, N * 18 + 1)
 
     return feats, label
 
 
 def read_train_csv(
-    fileName: str, N: int
-  ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    A utility function for reading the training data
-    in CSV format.
-    """
+    filename: str,
+    N: int,
+    UNBIASED: bool = False,
+  ) -> Tuple[ndarray, ndarray]:
+    """ A utility function for reading the training 
+        data in CSV format. """
 
-    data = np.genfromtxt(fileName,
-                         delimiter=',',
-                         skip_header=1
-                        )[:, 3:].astype(float)
-    # 12 months, 20 days per month,
-    #     18 features per day, 24 hours per day
-    data = data.reshape(12, -1, 18, 24)
-    train_X, train_Y = get_N_hours_feat(data[0], N)
+    data = (np.genfromtxt(
+                filename,
+                delimiter=',',  # CSV
+                skip_header=1,  # skip the header
+            )[:, 3:]            # omit station names
+            .astype(float)      # read into numbers
+
+            .reshape(12,        # 12 months,
+                     -1,        # 20 days per month,
+                   # ^^ -->       -1: filled \
+                   #                     automatically
+                     18,        # 18 features per day,
+                     24))       # 24 hours per day
+
+    # get January
+    train_X, train_y = get_N_hours_feat(
+                        data[0], N, UNBIASED=UNBIASED)
+
+    for i in range(1, 12):  # Feb. ~ Dec.
+        X, y = get_N_hours_feat(
+                        data[i], N, UNBIASED=UNBIASED)
+        train_X = np.concatenate((train_X, X), axis=0)
+        train_y = np.concatenate((train_y, y), axis=0)
+
+    return train_X, train_y
+
+
+def read_valid_csv(
+    filename: str,
+    N: int,
+    isval: bool = True,
+    UNBIASED: bool = False,
+  ) -> Tuple[ndarray, ndarray]:
+    """
+    A utility function for reading the testing data 
+        in CSV format.
+    `isval` is for validation.
+    """
+    DAYS = np.array([31, 28, 31, 30, 31, 30,
+                     31, 31, 30, 31, 30, 31])
+
+    if not isval:  # istest, hidden (deprecated)
+        test_days = DAYS - 22
+        cumul_days = [sum(test_days[:i]) 
+                      for i in range(1, 12 + 1)]
+    else:          # isval
+        # 2 days for each month
+        cumul_days = [2 * i for i in range(1, 12 + 1)]
+
+    data = (np.genfromtxt(
+                filename,
+                delimiter=',',  # CSV
+                skip_header=1,  # skip the header
+            )[:, 3:]            # omit station names
+            .astype(float)      # read into numbers
+
+            .reshape(-1,        # -1: filled \
+                                #        automatically
+                     18,        # 18 features per day,
+                     24))       # 24 hours per day
+
+
+    test_X, test_y = get_N_hours_feat(
+           data[:cumul_days[0]], N, UNBIASED=UNBIASED)
 
     for i in range(1, 12):
-        X, Y = get_N_hours_feat(data[i], N)
-        train_X = np.concatenate((train_X, X), axis=0)
-        train_Y = np.concatenate((train_Y, Y), axis=0)
+        X, y = get_N_hours_feat(
+            data[cumul_days[i - 1] : cumul_days[i]], 
+            N=N, UNBIASED=UNBIASED)
+        test_X = np.concatenate((test_X, X), axis=0)
+        test_y = np.concatenate((test_y, y), axis=0)
 
-    return train_X, train_Y
+    return test_X, test_y
 
 
 def read_test_csv(
-    fileName: str, N: int, isval: bool
-  ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    A utility function for reading the testing data
-    in CSV format. `isval` is for validation.
-    """
+    filename: str,
+    N: int,
+    UNBIASED: bool = False,
+  ) -> Tuple[ndarray, ndarray]:
+    """ A utility function for reading the testing 
+        data in CSV format. """
+    with open(filename) as f:
+        parsed_N = int(f.readline().split(',')[0]
+                                   .split('|')[-1])
+        assert N == parsed_N, "N wrong!"
 
-    if not isval:
-        test_days = DAYS - 22
-        cumul_days = [sum(test_days[:i])
-                          for i in range(1, 12 + 1)]
-    else:
-        # test_days = 5
-        cumul_days = [2 * i for i in range(1, 12 + 1)]
-    data = (np.genfromtxt(fileName,
-                          delimiter=',',
-                          skip_header=1
-                         )[:, 3:].astype(float)
-                                 .reshape(-1, 18, 24))
+    data       = np.genfromtxt(
+                     filename,
+                     delimiter=',',  # CSV
+                     dtype=str,       
+                           # read into strings for ids
+                     skip_header=1,  # skip the header
+                 )
+    id_columns = data[:, 0]          # testdata id
+    test_X     = data[:, 1:].astype(float)  
+                                     # read into \
+                                     #     numbers
+    if not UNBIASED:
+        test_X = np.concatenate([
+            test_X,
+            np.ones((len(test_X), 1)),  # bias terms
+        ], axis=1)
 
-    test_X, test_Y = get_N_hours_feat(
-        data[:cumul_days[0]], N)
-
-    for i in range(1, 12):
-        X, Y = get_N_hours_feat(
-            data[cumul_days[i - 1] : cumul_days[i]],
-            N)
-        test_X = np.concatenate((test_X, X), axis=0)
-        test_Y = np.concatenate((test_Y, Y), axis=0)
-
-    return test_X, test_Y
+    return test_X, id_columns
 
 
+# 4.       ---       main class        ---       --- #
 class LinearRegression(object):
     """
     A class wrapper for linear regression.
 
     Attributes
     ----------
-    W : np.ndarray
+    w : ndarray
         The weight vector for linear regression.
 
     Methods
     -------
-    train(X, Y):
-        Training the regressor by X and Y.
+    train(X, y):
+        Training the regressor by X and y.
     predict(X):
-        Predict from X and the W vector.
+        Predict from X and the w vector.
     """
+    def __init__(self) -> None: pass
 
-    def __init__(self): pass
+    def train(self, X: ndarray, y: ndarray) -> None:
+        """ Input X and y to train the w vector. """
+        self.w = np.array([])  # TODO: Part 1 / 4
 
-    def train(self, X: np.ndarray, Y: np.ndarray):
-        """ Input X and Y to train the W vector. """
-        # TODO: the shape of W should be
-        #       number of features
-        W = np.array()
-        self.W = W
-
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        """ Predict by the given X and trained W. """
-        # TODO
-        pred_X = np.array()
-        return pred_X
+    def predict(self, X: ndarray) -> ndarray:
+        """ Predict by the given X and trained w. """
+        pred_y = np.array([])  # TODO: Part 2 / 4
+        return pred_y
 
 
-def MSE(
-  pred_Y: np.ndarray, real_Y: np.ndarray
-) -> float:
+# 5.       ---     main function       ---       --- #
+def MSE(pred_y: ndarray, real_y: ndarray) -> float:
     """ Return the MSE by predicted and real data. """
-    # TODO: mean square error
-    error: float = 0.
+    error = 999.               # TODO: Part 3 / 4
     return error
