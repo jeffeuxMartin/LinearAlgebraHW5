@@ -91,13 +91,13 @@ def plot_N_loss(
     all_train_losses = []
     all_valid_losses = []
 
-    for N in range(1, 5 + 1):  # 1 ~ 5
+    for N in range(1, 30 + 1):  # 1 ~ 30
         train_loss, valid_loss = run_train_valid(
                     N, train_filename, valid_filename)
         all_train_losses.append(train_loss)
         all_valid_losses.append(valid_loss)
 
-    Ns = list(range(1, 5 + 1))  # 1 ~ 5
+    Ns = list(range(1, 30 + 1))  # 1 ~ 30
     plt.plot(Ns, all_train_losses, 
                               "b", label="train")
     plt.plot(Ns, all_valid_losses, 
